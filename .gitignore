@@ -1,0 +1,19 @@
+# Arduino build
+*.bin
+*.elf
+*.map
+
+# Arduino cache
+.build/
+.cache/
+
+# VSCode / IDE
+.vscode/
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Secrets (if any later)
+secrets.h
