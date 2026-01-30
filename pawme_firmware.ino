@@ -2,7 +2,7 @@
 #include <WebServer.h>
 #include <Preferences.h>
 #include <ArduinoOTA.h>
-#include <ESPmDNS.h>          // ✅ ADD: mDNS
+#include <ESPmDNS.h>
 
 #include "src/core/wifiManager.h"
 #include "src/core/deviceState.h"
@@ -12,7 +12,7 @@ WebServer server(80);
 Preferences prefs;
 
 /* =========================
-   STEP 1 : WIFI SETUP (AP MODE)
+   STEP 1 : WIFI SETUP (AP)
    ========================= */
 
 void handleRoot() {
@@ -43,7 +43,7 @@ void handleWifiSave() {
 }
 
 /* =========================
-   STEP 2 : OTA (STA MODE ONLY)
+   STEP 2 : OTA (STA ONLY)
    ========================= */
 
 void setupOTA() {
@@ -59,27 +59,21 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // Step 1: WiFi init (AP or STA decided internally)
   wifiInit();
 
-  // Web routes (AP + STA safe)
   server.on("/", HTTP_GET, handleRoot);
   server.on("/wifi", HTTP_POST, handleWifiSave);
-
   server.begin();
-  cameraRegisterStream();
 }
 
 void loop() {
   wifiLoop();
 
   static bool otaStarted = false;
-  static bool cameraStarted = false;
   static bool mdnsStarted = false;
+  static bool cameraStarted = false;
 
-  /* =========================
-     STEP 2 : OTA (STA ONLY)
-     ========================= */
+  /* ===== OTA ===== */
   if (deviceState == WIFI_CONNECTED && !otaStarted) {
     setupOTA();
     otaStarted = true;
@@ -88,19 +82,15 @@ void loop() {
     ArduinoOTA.handle();
   }
 
-  /* =========================
-     STEP 2.5 : mDNS (STA ONLY)
-     ========================= */
+  /* ===== mDNS ===== */
   if (deviceState == WIFI_CONNECTED && !mdnsStarted) {
-    MDNS.begin("pawme");     // pawme.local
+    MDNS.begin("pawme");   // pawme.local
     mdnsStarted = true;
   }
 
-  /* =========================
-     STEP 3 : CAMERA (STA ONLY)
-     ========================= */
+  /* ===== CAMERA (START ONCE, STA ONLY) ===== */
   if (deviceState == WIFI_CONNECTED && !cameraStarted) {
-    cameraRegisterStream();   // registers /stream
+    cameraRegisterStream();  // starts HTTP server on port 81
     cameraStarted = true;
   }
 
