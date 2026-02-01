@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
 #include <ArduinoOTA.h>
@@ -16,14 +17,20 @@ Preferences prefs;
    ========================= */
 
 void handleRoot() {
-  server.send(200, "text/html",
-    "<h2>Pawme WiFi Setup</h2>"
-    "<form method='POST' action='/wifi'>"
-    "SSID:<br><input name='ssid'><br>"
-    "Password:<br><input name='pass' type='password'><br><br>"
-    "<button>Save</button>"
-    "</form>"
-  );
+  // Added a simple <img> tag so you can actually see the stream on the home page
+  String html = "<h2>Pawme WiFi Setup</h2>";
+  if (WiFi.status() == WL_CONNECTED) {
+    html += "<div style='margin-bottom: 20px;'>";
+    html += "<h3>Live Feed</h3>";
+    html += "<img src='http://" + WiFi.localIP().toString() + ":81/stream' style='width:320px;'>";
+    html += "</div>";
+  }
+  html += "<form method='POST' action='/wifi'>";
+  html += "SSID:<br><input name='ssid'><br>";
+  html += "Password:<br><input name='pass' type='password'><br><br>";
+  html += "<button>Save</button></form>";
+  
+  server.send(200, "text/html", html);
 }
 
 void handleWifiSave() {
@@ -84,13 +91,13 @@ void loop() {
 
   /* ===== mDNS ===== */
   if (deviceState == WIFI_CONNECTED && !mdnsStarted) {
-    MDNS.begin("pawme");   // pawme.local
+    MDNS.begin("pawme"); 
     mdnsStarted = true;
   }
 
   /* ===== CAMERA (START ONCE, STA ONLY) ===== */
   if (deviceState == WIFI_CONNECTED && !cameraStarted) {
-    cameraRegisterStream();  // starts HTTP server on port 81
+    cameraRegisterStream();  // Starts the secondary server on port 81
     cameraStarted = true;
   }
 
