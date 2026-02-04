@@ -17,12 +17,12 @@ Preferences prefs;
    ========================= */
 
 void handleRoot() {
-  // Added a simple <img> tag so you can actually see the stream on the home page
   String html = "<h2>Pawme WiFi Setup</h2>";
   if (WiFi.status() == WL_CONNECTED) {
     html += "<div style='margin-bottom: 20px;'>";
     html += "<h3>Live Feed</h3>";
-    html += "<img src='http://" + WiFi.localIP().toString() + ":81/stream' style='width:320px;'>";
+    // Using the mDNS name in the browser view as well
+    html += "<img src='http://pawme.local:81/stream' style='width:320px;'>";
     html += "</div>";
   }
   html += "<form method='POST' action='/wifi'>";
@@ -45,7 +45,10 @@ void handleWifiSave() {
   prefs.end();
 
   server.send(200, "text/plain", "Saved. Rebooting...");
-  delay(1000);
+  
+  // Clean shutdown for network stability
+  server.client().stop(); 
+  delay(2000); 
   ESP.restart();
 }
 
@@ -89,10 +92,21 @@ void loop() {
     ArduinoOTA.handle();
   }
 
-  /* ===== mDNS ===== */
+  /* ===== mDNS SERVICE DISCOVERY ===== */
   if (deviceState == WIFI_CONNECTED && !mdnsStarted) {
-    MDNS.begin("pawme"); 
-    mdnsStarted = true;
+    // Start mDNS responder for pawme.local
+    if (MDNS.begin("pawme")) {
+      Serial.println("[mDNS] Started: http://pawme.local");
+      
+      // Advertise the main web server (Port 80)
+      MDNS.addService("http", "tcp", 80);
+      
+      // Advertise the camera stream specifically (Port 81)
+      // The app will look for "_pawme-cam._tcp"
+      MDNS.addService("pawme-cam", "tcp", 81);
+      
+      mdnsStarted = true;
+    }
   }
 
   /* ===== CAMERA (START ONCE, STA ONLY) ===== */
@@ -102,4 +116,10 @@ void loop() {
   }
 
   server.handleClient();
+  
+  // Allow mDNS to process background tasks
+  if(mdnsStarted) {
+    // Optional: some ESP32 cores require explicit MDNS update calls
+    // MDNS.update(); 
+  }
 }
